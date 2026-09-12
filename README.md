@@ -2,7 +2,7 @@
 
 Answers routine ATC calls in career mode while you are away from the keyboard.
 
-It screenshots the pinned ATC panel about once a second, reads the numbered
+It screenshots the pinned ATC panel every few seconds, reads the numbered
 options with the Windows OCR engine, and when an acknowledgement or readback
 option shows up (Roger, Wilco, "Contact Seattle Center on 125.80, N172SP",
 "Descend and maintain 5,000, N172SP", etc.) it presses that number key.
@@ -78,7 +78,7 @@ Use it for a whole flight the first time to see what it would have done.
 |---|---|---|
 | `region` | null | Screen rectangle of the ATC panel. Set with `select-region.bat`. |
 | `callsign` | "" | Your tail number. Options ending with it count as readbacks. |
-| `scan_interval` | 1.0 | Seconds between scans. |
+| `scan_interval` | 10.0 | Seconds between scans. |
 | `confirm_scans` | 2 | Consecutive scans an option must be seen before pressing. |
 | `min_press_interval` | 4.0 | Minimum seconds between presses. |
 | `post_press_delay` | 2.5 | Pause after a press so the panel can redraw. |

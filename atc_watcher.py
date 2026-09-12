@@ -45,7 +45,7 @@ DEFAULT_CONFIG = {
     "region": None,
 
     # Seconds between scans.
-    "scan_interval": 1.0,
+    "scan_interval": 10.0,
 
     # The same acknowledgement option must be seen this many scans in a row before we press.
     # Protects against a single garbled OCR frame.
