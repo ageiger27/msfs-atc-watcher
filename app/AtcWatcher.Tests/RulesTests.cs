@@ -90,7 +90,7 @@ public class RulesTests
 
         var invited = new[]
         {
-            "Speedbird NAO9210, Salt Lake Center, VFR conditions at KLOL, you may cancel IFR.",
+            "Speedbird NAO9210, you can cancel IFR. Continue VFR to your destination.",
             "1 - Request vector to next waypoint", "2 - Cancel IFR",
         };
         var (chosen2, _) = d.Choose(OptionParser.Parse(invited), invited);

@@ -61,7 +61,7 @@ public sealed class Settings
 
     public static List<ContextRule> DefaultContextRules() => new()
     {
-        new(@"^cancel ifr\b", @"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel", "ATC said we may cancel IFR"),
+        new(@"^cancel ifr\b", @"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel|continue vfr", "ATC said we may cancel IFR"),
         new(@"^request flight following\b", @"retry with last ifr|flight following", "IFR just ended; pick up flight following"),
     };
 

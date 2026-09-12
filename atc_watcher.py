@@ -115,7 +115,7 @@ DEFAULT_CONFIG = {
     # history and the other options). Context rules beat the deny list.
     "context_rules": [
         {"option": r"^cancel ifr\b",
-         "context": r"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel",
+         "context": r"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel|continue vfr",
          "note": "ATC said we may cancel IFR"},
         {"option": r"^request flight following\b",
          "context": r"retry with last ifr|flight following",

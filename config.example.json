@@ -38,7 +38,7 @@
   "context_rules": [
     {
       "option": "^cancel ifr\\b",
-      "context": "cancel\\W{0,3}(your |the )?ifr|ifr\\W.{0,30}cancel",
+      "context": "cancel\\W{0,3}(your |the )?ifr|ifr\\W.{0,30}cancel|continue vfr",
       "note": "ATC said we may cancel IFR"
     },
     {
