@@ -124,6 +124,25 @@ public class RulesTests
     }
 
     [Fact]
+    public void Takes_ifr_clearance_at_the_start_not_flight_following()
+    {
+        var d = MakeDecider("Speedbird NAO5410");
+        // Real panel from the start of an IFR career flight at an untowered field.
+        var start = new[] { "1 - Request Flight Following", "2 - Request IFR Clearance", "3 - [ Nearest Airport List ]" };
+        var (chosen, verdicts) = d.Choose(OptionParser.Parse(start), start);
+        Assert.Equal("Request IFR Clearance", chosen?.Text);
+        Assert.Equal(Verdict.Deny, verdicts.Single(v => v.Option.Text == "Request Flight Following").Verdict);
+
+        // Even with an earlier "flight following" mention in the history, it must not fire without IFR ending.
+        var withHistory = new[] { "You", "Request flight following.", "1 - Request Flight Following", "2 - [ Nearest Airport List ]" };
+        Assert.Null(d.Choose(OptionParser.Parse(withHistory), withHistory).Chosen);
+
+        // VFR announcements at an untowered field are left to the pilot.
+        var vfr = new[] { "1 - Announce Taxi", "2 - Announce Clear of Runway", "3 - Announce Takeoff - Remain in Pattern", "4 - Announce Takeoff - Depart Straight Out" };
+        Assert.Null(d.Choose(OptionParser.Parse(vfr), vfr).Chosen);
+    }
+
+    [Fact]
     public void Detects_callsign_from_controller_lines()
     {
         var lines = new[]

@@ -89,7 +89,7 @@ DEFAULT_CONFIG = {
 
     # Option text that means "this is an acknowledgement / readback". Case-insensitive regex.
     "allow_patterns": [
-        r"^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood)\b",
+        r"^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood|read\s?back)\b",
         # Handoff readback or tuning to the new frequency: "Contact Salt Lake Center on 128.05",
         # "Tune COM1 to 128.05", "Switch to 128.05".
         r"\b(contact|switch(ing)?( to)?|monitor|tune|set)\b.*\b1\d{2}[.,]\d{1,3}\b",
@@ -117,8 +117,14 @@ DEFAULT_CONFIG = {
         {"option": r"^cancel ifr\b",
          "context": r"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel|continue vfr",
          "note": "ATC said we may cancel IFR"},
+        # Start of an IFR flight: the panel offers "Request IFR Clearance" (and usually
+        # "Request Flight Following" above it). Always take the clearance. Empty context = always.
+        {"option": r"^request ifr clearance\b",
+         "context": r"",
+         "note": "IFR flight plan loaded; get the clearance"},
+        # Only after IFR has just ended (the panel also offers "Retry With Last IFR Flight Plan").
         {"option": r"^request flight following\b",
-         "context": r"retry with last ifr|flight following",
+         "context": r"retry with last ifr",
          "note": "IFR just ended; pick up flight following"},
     ],
 }

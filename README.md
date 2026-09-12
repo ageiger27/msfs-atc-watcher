@@ -28,6 +28,9 @@ matched (SKIP). If a call gets missed, the SKIP row tells you what text to add
 a rule for. Rules live in `%APPDATA%\AtcWatcher\settings.json` and are the
 same regexes the Python script uses.
 
+Set the `ATCWATCHER_DIR` environment variable to keep settings, log and
+captures somewhere other than `%APPDATA%\AtcWatcher`.
+
 Building it yourself needs the .NET 8 SDK: run `app\publish.bat`, or open
 `app\AtcWatcher.sln` in Visual Studio. Tests: `dotnet test app`.
 
@@ -80,6 +83,8 @@ Use it for a whole flight the first time to see what it would have done.
 
 ## Safety rules built in
 
+- At the start of an IFR flight, "Request IFR Clearance" is always taken when
+  the panel offers it, and the clearance read-back is acknowledged.
 - Context rules handle the IFR-to-VFR transition. "Cancel IFR" is pressed only
   when ATC's message on the panel says you may cancel, and "Request Flight
   Following" only when the panel is also offering "Retry With Last IFR Flight

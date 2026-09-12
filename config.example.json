@@ -24,7 +24,7 @@
   "dry_run": false,
   "save_trigger_captures": true,
   "allow_patterns": [
-    "^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood)\\b",
+    "^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood|read\\s?back)\\b",
     "\\b(contact|switch(ing)?( to)?|monitor|tune|set)\\b.*\\b1\\d{2}[.,]\\d{1,3}\\b",
     "^(contact|switch(ing)?( to)?|monitor|tune)\\b.*\\b(center|centre|approach|departure|tower|ground|delivery|radio|control|unicom|clearance|director|radar)\\b",
     "^[a-z .'\\-]+\\b(center|centre|approach|departure|tower|ground|delivery|radio|control|unicom|clearance|director|radar)\\b.*\\b(\\d{1,2},?\\d{3}\\s*(ft|feet)|fl\\s?\\d{2,3}|flight level|with you|level)\\b",
@@ -42,8 +42,13 @@
       "note": "ATC said we may cancel IFR"
     },
     {
+      "option": "^request ifr clearance\\b",
+      "context": "",
+      "note": "IFR flight plan loaded; get the clearance"
+    },
+    {
       "option": "^request flight following\\b",
-      "context": "retry with last ifr|flight following",
+      "context": "retry with last ifr",
       "note": "IFR just ended; pick up flight following"
     }
   ]

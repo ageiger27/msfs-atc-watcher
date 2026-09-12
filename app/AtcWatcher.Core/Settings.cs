@@ -23,8 +23,11 @@ public sealed record RegionRect(int Left, int Top, int Width, int Height)
 /// </summary>
 public sealed class Settings
 {
+    /// <summary>%APPDATA%\AtcWatcher, or the ATCWATCHER_DIR environment variable when set (used for testing).</summary>
     public static readonly string Dir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AtcWatcher");
+        Environment.GetEnvironmentVariable("ATCWATCHER_DIR") is { Length: > 0 } overrideDir
+            ? overrideDir
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AtcWatcher");
     public static readonly string FilePath = Path.Combine(Dir, "settings.json");
     public static readonly string CapturesDir = Path.Combine(Dir, "captures");
     public static readonly string LogPath = Path.Combine(Dir, "atc_watcher.log");
@@ -62,12 +65,15 @@ public sealed class Settings
     public static List<ContextRule> DefaultContextRules() => new()
     {
         new(@"^cancel ifr\b", @"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel|continue vfr", "ATC said we may cancel IFR"),
-        new(@"^request flight following\b", @"retry with last ifr|flight following", "IFR just ended; pick up flight following"),
+        // Start of an IFR flight: always take the clearance when it is offered. Empty context = always.
+        new(@"^request ifr clearance\b", "", "IFR flight plan loaded; get the clearance"),
+        // Only after IFR has just ended (the panel also offers "Retry With Last IFR Flight Plan").
+        new(@"^request flight following\b", @"retry with last ifr", "IFR just ended; pick up flight following"),
     };
 
     public static List<string> DefaultAllowPatterns() => new()
     {
-        @"^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood)\b",
+        @"^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood|read\s?back)\b",
         // Handoff readback or tuning to the new frequency.
         @"\b(contact|switch(ing)?( to)?|monitor|tune|set)\b.*\b1\d{2}[.,]\d{1,3}\b",
         // Handoff readback whose frequency wrapped onto the next line: "Contact Salt Lake Center".
