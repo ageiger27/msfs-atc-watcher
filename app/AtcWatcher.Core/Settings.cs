@@ -46,6 +46,12 @@ public sealed class Settings
     public int HeartbeatInterval { get; set; } = 60;
     public string SimWindowTitleContains { get; set; } = "Flight Simulator";
 
+    /// <summary>
+    /// When another window is active, briefly bring the sim to the front to press the key, then
+    /// give focus back. Off = wait until the sim is active on its own (calls may be missed).
+    /// </summary>
+    public bool BringSimToFront { get; set; } = true;
+
     public Dictionary<string, string> OptionKeys { get; set; } = new()
     {
         ["1"] = "1", ["2"] = "2", ["3"] = "3", ["4"] = "4", ["5"] = "5",

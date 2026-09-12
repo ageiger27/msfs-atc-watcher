@@ -96,8 +96,10 @@ Use it for a whole flight the first time to see what it would have done.
   scans before it is pressed, at the cost of a slower reply.
 - At most one press every 4 seconds, and never the same option twice in a row
   until it has cleared from the panel.
-- Keys are only sent when the foreground window title contains
-  "Flight Simulator". If you alt-tab to a browser, nothing is pressed.
+- Keys only go to the sim. If you are in Discord or a browser when a call
+  comes in, the watcher brings the sim to the front for a moment, presses the
+  key, and hands focus back. Set `bring_sim_to_front` to false to make it wait
+  for the sim to be active instead.
 
 ## Known limits
 
@@ -124,7 +126,8 @@ Use it for a whole flight the first time to see what it would have done.
 | `min_press_interval` | 4.0 | Minimum seconds between presses. |
 | `post_press_delay` | 2.5 | Pause after a press so the panel can redraw. |
 | `ocr_scale` | 2 | Upscale factor before OCR. Raise to 3 if the panel font is tiny. |
-| `sim_window_title_contains` | "Flight Simulator" | Foreground window check. |
+| `sim_window_title_contains` | "Flight Simulator" | How the sim window is recognised. |
+| `bring_sim_to_front` | true | Activate the sim to press, then restore the previous window. |
 | `option_keys` | 1-0 | Key sent for each option number. |
 | `toggle_hotkey` | "ctrl+alt+a" | Global arm / disarm hotkey. |
 | `armed_on_start` | true | Start armed. |

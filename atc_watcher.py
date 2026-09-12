@@ -70,6 +70,10 @@ DEFAULT_CONFIG = {
     # Only press when the foreground window title contains this text.
     "sim_window_title_contains": "Flight Simulator",
 
+    # When another window is active (Discord, browser...), briefly bring the sim to the front to
+    # press the key, then give focus back. False = wait until the sim is active on its own.
+    "bring_sim_to_front": True,
+
     # Keyboard key sent for each ATC option number. Defaults match MSFS's default bindings.
     # Valid names: 0-9, num0-num9, f1-f12, a-z.
     "option_keys": {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5",
@@ -169,12 +173,55 @@ def set_dpi_aware() -> None:
             pass
 
 
-def foreground_window_title() -> str:
-    hwnd = user32.GetForegroundWindow()
+def window_title(hwnd) -> str:
     length = user32.GetWindowTextLengthW(hwnd)
     buf = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buf, length + 1)
     return buf.value
+
+
+def foreground_window_title() -> str:
+    return window_title(user32.GetForegroundWindow())
+
+
+def find_window_by_title(needle: str):
+    """First visible top-level window whose title contains needle, or None."""
+    found = []
+    proc = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
+
+    def cb(hwnd, _):
+        if user32.IsWindowVisible(hwnd) and needle.lower() in window_title(hwnd).lower():
+            found.append(hwnd)
+            return False
+        return True
+
+    user32.EnumWindows(proc(cb), 0)
+    return found[0] if found else None
+
+
+def activate_window(hwnd) -> bool:
+    """Make hwnd the active window from a background process (ALT tap + AttachThreadInput trick)."""
+    fg = user32.GetForegroundWindow()
+    if fg == hwnd:
+        return True
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    me = kernel32.GetCurrentThreadId()
+    fg_thread = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+    attached = bool(fg_thread and fg_thread != me and user32.AttachThreadInput(me, fg_thread, True))
+    try:
+        _send_scan(0x38, False)          # ALT down
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        _send_scan(0x38, True)           # ALT up
+    finally:
+        if attached:
+            user32.AttachThreadInput(me, fg_thread, False)
+    for _ in range(12):
+        if user32.GetForegroundWindow() == hwnd:
+            return True
+        time.sleep(0.05)
+    return False
 
 
 # --- SendInput with hardware scan codes (what games expect) ---
@@ -220,16 +267,19 @@ SCANCODES = {
 }
 
 
+def _send_scan(sc: int, up: bool) -> None:
+    flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if up else 0)
+    inp = INPUT(type=INPUT_KEYBOARD, u=_INPUTUNION(ki=KEYBDINPUT(0, sc, flags, 0, 0)))
+    user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+
+
 def press_key(name: str, hold: float = 0.08) -> None:
     sc = SCANCODES.get(name.lower())
     if sc is None:
         raise ValueError(f"Unknown key name in option_keys: {name!r}")
-    down = INPUT(type=INPUT_KEYBOARD, u=_INPUTUNION(ki=KEYBDINPUT(0, sc, KEYEVENTF_SCANCODE, 0, 0)))
-    up = INPUT(type=INPUT_KEYBOARD,
-               u=_INPUTUNION(ki=KEYBDINPUT(0, sc, KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0, 0)))
-    user32.SendInput(1, ctypes.byref(down), ctypes.sizeof(INPUT))
+    _send_scan(sc, False)
     time.sleep(hold)
-    user32.SendInput(1, ctypes.byref(up), ctypes.sizeof(INPUT))
+    _send_scan(sc, True)
 
 
 # --- Global hotkey (RegisterHotKey) ---
@@ -375,18 +425,18 @@ class Option:
 
 # "1. Contact ...", "1 Contact ...", "1) ...". A digit must be followed by a separator or a space
 # so history lines like "10,000 feet" don't parse as option 1.
-OPTION_RE = re.compile(r"^\s*(\d)(?:\s*[.,:;)\]\-]\s*(\S.*)|\s+([A-Z\[].*))$")
+OPTION_RE = re.compile(r"^\s*([1-9])(?:\s*[.,:;)\]\-]\s*|\s+)([A-Z\[].*)$")
 
 
 def parse_options(lines: list[str]) -> list[Option]:
-    # "1 - Acknowledge Handoff" (separator) always parses. "4 Tune ATIS" (space only) parses only
-    # when the text starts with a capital, so wrapped history lines like "9 miles northwest of KLOL"
-    # are not mistaken for option 9.
+    # Options are "1 - Acknowledge Handoff", "2. Say Again", "4 Tune ATIS": a digit 1-9, an optional
+    # separator, then text starting with a capital letter or "[". Wrapped history fragments such as
+    # "9 miles northwest of KLOL" or "0 , acknowledge last transmission" therefore never parse.
     opts = []
     for raw in lines:
         m = OPTION_RE.match(raw)
         if m:
-            text = (m.group(2) or m.group(3) or "").strip()
+            text = m.group(2).strip()
             if text:
                 opts.append(Option(number=m.group(1), text=text, raw=raw))
     return opts
@@ -659,22 +709,37 @@ def run_watch(cfg: dict, log: logging.Logger, dry_run: bool) -> int:
                     log.debug("rate limited")
                     continue
 
-                title = foreground_window_title()
-                if title_needle and title_needle.lower() not in title.lower():
-                    log.info("Would answer [%s] %s but the sim is not in the foreground (%r). Waiting.",
-                             chosen.number, chosen.text, title)
-                    continue
-
                 keyname = cfg["option_keys"].get(chosen.number)
                 if not keyname:
                     log.warning("No key mapped for option %s; check option_keys in config.json", chosen.number)
                     continue
+
+                title = foreground_window_title()
+                sim_in_front = not title_needle or title_needle.lower() in title.lower()
+                previous = None
+                if not sim_in_front and not dry_run:
+                    if cfg.get("bring_sim_to_front", True):
+                        sim = find_window_by_title(title_needle)
+                        if sim:
+                            previous = user32.GetForegroundWindow()
+                            sim_in_front = activate_window(sim)
+                            log.info("Brought the sim to the front (you were in %r)" if sim_in_front
+                                     else "Could not bring the sim to the front (active window %r)", title)
+                        else:
+                            log.info("No window with %r in its title; is the sim running?", title_needle)
+                    if not sim_in_front:
+                        log.info("Would answer [%s] %s but the sim is not in the foreground (%r). Waiting.",
+                                 chosen.number, chosen.text, title)
+                        continue
 
                 if dry_run:
                     log.info("DRY RUN: would press %r for [%s] %s", keyname, chosen.number, chosen.text)
                 else:
                     log.info("Answering ATC: pressing %r for [%s] %s", keyname, chosen.number, chosen.text)
                     press_key(keyname)
+                    if previous:
+                        time.sleep(0.15)
+                        activate_window(previous)   # hand focus back to what the user was doing
                 if cfg.get("save_trigger_captures", True):
                     save_debug_capture(img, f"press{chosen.number}")
 

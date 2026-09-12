@@ -41,6 +41,88 @@ public static class InputSender
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowTextLength(IntPtr hWnd);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    [DllImport("user32.dll")] private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    private const int SW_RESTORE = 9;
+    private const ushort SC_ALT = 0x38;
+
+    public static IntPtr ForegroundWindowHandle() => GetForegroundWindow();
+
+    private static string TitleOf(IntPtr h)
+    {
+        var len = GetWindowTextLength(h);
+        if (len <= 0) return "";
+        var sb = new StringBuilder(len + 1);
+        GetWindowText(h, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    /// <summary>First visible top-level window whose title contains <paramref name="needle"/>.</summary>
+    public static IntPtr FindWindowByTitle(string needle)
+    {
+        var found = IntPtr.Zero;
+        EnumWindows((h, _) =>
+        {
+            if (IsWindowVisible(h) && TitleOf(h).Contains(needle, StringComparison.OrdinalIgnoreCase))
+            {
+                found = h;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    /// <summary>
+    /// Makes <paramref name="hwnd"/> the active window even though we are a background process:
+    /// attach to the current foreground thread's input queue and tap ALT, which Windows treats as
+    /// the user's own foreground-change permission.
+    /// </summary>
+    public static bool Activate(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return false;
+        var fg = GetForegroundWindow();
+        if (fg == hwnd) return true;
+        if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+
+        var me = GetCurrentThreadId();
+        var fgThread = fg == IntPtr.Zero ? 0 : GetWindowThreadProcessId(fg, out _);
+        var attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
+        try
+        {
+            SendScan(SC_ALT, false);
+            BringWindowToTop(hwnd);
+            SetForegroundWindow(hwnd);
+            SendScan(SC_ALT, true);
+        }
+        finally
+        {
+            if (attached) AttachThreadInput(me, fgThread, false);
+        }
+
+        for (var i = 0; i < 12; i++)
+        {
+            if (GetForegroundWindow() == hwnd) return true;
+            Thread.Sleep(50);
+        }
+        return false;
+    }
+
+    private static void SendScan(ushort sc, bool up)
+    {
+        var flags = KEYEVENTF_SCANCODE | (up ? KEYEVENTF_KEYUP : 0);
+        var input = new INPUT { type = INPUT_KEYBOARD, u = new INPUTUNION { ki = new KEYBDINPUT { wScan = sc, dwFlags = flags } } };
+        SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+    }
 
     public static readonly IReadOnlyDictionary<string, ushort> ScanCodes = BuildScanCodes();
 
@@ -77,12 +159,5 @@ public static class InputSender
         SendInput(1, new[] { up }, Marshal.SizeOf<INPUT>());
     }
 
-    public static string ForegroundWindowTitle()
-    {
-        var h = GetForegroundWindow();
-        var len = GetWindowTextLength(h);
-        var sb = new StringBuilder(len + 1);
-        GetWindowText(h, sb, sb.Capacity);
-        return sb.ToString();
-    }
+    public static string ForegroundWindowTitle() => TitleOf(GetForegroundWindow());
 }

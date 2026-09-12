@@ -162,17 +162,6 @@ public sealed class Watcher : IDisposable
                     continue;
                 }
 
-                var title = InputSender.ForegroundWindowTitle();
-                var needle = s.SimWindowTitleContains ?? "";
-                if (needle.Length > 0 && !title.Contains(needle, StringComparison.OrdinalIgnoreCase))
-                {
-                    var msg = $"Would answer [{chosen.Number}] {chosen.Text} but the sim is not in the foreground ('{title}')";
-                    AppLog.Write(msg);
-                    Status?.Invoke("Sim is not the active window; waiting");
-                    scan.Image.Dispose();
-                    continue;
-                }
-
                 if (!s.OptionKeys.TryGetValue(chosen.Number, out var keyName) || !InputSender.IsValidKeyName(keyName))
                 {
                     AppLog.Write($"No valid key mapped for option {chosen.Number}; check the key bindings in settings");
@@ -181,10 +170,43 @@ public sealed class Watcher : IDisposable
                 }
 
                 var dry = s.DryRun;
+                var title = InputSender.ForegroundWindowTitle();
+                var needle = s.SimWindowTitleContains ?? "";
+                var simInFront = needle.Length == 0 || title.Contains(needle, StringComparison.OrdinalIgnoreCase);
+                var previous = IntPtr.Zero;
+                if (!simInFront && !dry)
+                {
+                    if (s.BringSimToFront)
+                    {
+                        var sim = InputSender.FindWindowByTitle(needle);
+                        if (sim != IntPtr.Zero)
+                        {
+                            previous = InputSender.ForegroundWindowHandle();
+                            simInFront = InputSender.Activate(sim);
+                            AppLog.Write(simInFront
+                                ? $"Brought the sim to the front (you were in '{title}')"
+                                : $"Could not bring the sim to the front (active window '{title}')");
+                        }
+                        else AppLog.Write($"No window with '{needle}' in its title; is the sim running?");
+                    }
+                    if (!simInFront)
+                    {
+                        AppLog.Write($"Would answer [{chosen.Number}] {chosen.Text} but the sim is not in the foreground ('{title}')");
+                        Status?.Invoke("Sim is not the active window; waiting");
+                        scan.Image.Dispose();
+                        continue;
+                    }
+                }
+
                 AppLog.Write(dry
                     ? $"DRY RUN: would press '{keyName}' for [{chosen.Number}] {chosen.Text}"
                     : $"Answering ATC: pressing '{keyName}' for [{chosen.Number}] {chosen.Text}");
                 if (!dry) InputSender.Press(keyName);
+                if (previous != IntPtr.Zero)
+                {
+                    Thread.Sleep(150);
+                    InputSender.Activate(previous);   // hand focus back to what the user was doing
+                }
 
                 string? capturePath = null;
                 if (s.SaveTriggerCaptures)

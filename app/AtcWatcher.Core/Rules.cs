@@ -13,17 +13,18 @@ public static class OptionParser
 {
     // "1 - Acknowledge Handoff", "1. Roger", "1) ...". The digit must be followed by a separator
     // or whitespace so history lines like "10,000 ft" never parse as option 1.
-    // "4 Tune ATIS" (space only) parses only when the text starts with a capital, so wrapped
-    // history lines like "9 miles northwest of KLOL" are not mistaken for option 9.
+    // Options are "1 - Acknowledge Handoff", "2. Say Again", "4 Tune ATIS": a digit 1-9, an optional
+    // separator, then text starting with a capital letter or "[". Wrapped history fragments such as
+    // "9 miles northwest of KLOL" or "0 , acknowledge last transmission" therefore never parse.
     private static readonly Regex OptionRe =
-        new(@"^\s*(\d)(?:\s*[.,:;)\]\-]\s*(\S.*)|\s+([A-Z\[].*))$", RegexOptions.Compiled);
+        new(@"^\s*([1-9])(?:\s*[.,:;)\]\-]\s*|\s+)([A-Z\[].*)$", RegexOptions.Compiled);
 
     public static bool TryParse(string line, out AtcOption option)
     {
         var m = OptionRe.Match(line);
         if (m.Success)
         {
-            var text = (m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value).Trim();
+            var text = m.Groups[2].Value.Trim();
             if (text.Length > 0)
             {
                 option = new AtcOption(m.Groups[1].Value, text, line);

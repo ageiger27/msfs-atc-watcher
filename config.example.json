@@ -51,5 +51,6 @@
       "context": "retry with last ifr",
       "note": "IFR just ended; pick up flight following"
     }
-  ]
+  ],
+  "bring_sim_to_front": true
 }

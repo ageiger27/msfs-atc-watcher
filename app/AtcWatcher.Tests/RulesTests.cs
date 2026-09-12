@@ -68,6 +68,9 @@ public class RulesTests
     [InlineData("128.05")]
     [InlineData("9 miles northwest of KLOL, 12,000")]
     [InlineData("8 80")]
+    [InlineData("0 , acknowledge last transmission.")]
+    [InlineData("0 - acknowledge")]
+    [InlineData("1 - acknowledge in lower case is a wrapped fragment")]
     [InlineData("")]
     public void Ignores_history_lines(string line)
     {
