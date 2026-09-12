@@ -7,6 +7,13 @@ public sealed record PressEvent(DateTime Time, AtcOption Option, string Key, str
 
 public sealed record ScanResult(List<OcrLine> Lines, List<AtcOption> Options, List<Classified> Verdicts, Bitmap Image);
 
+/// <summary>Snapshot of everything the watcher needs to be working, refreshed after every scan.</summary>
+public sealed record Health(
+    bool SimFound, string SimTitle,
+    bool RegionSet, int LinesRead, int OptionsRead, DateTime? LastScan,
+    bool CallsignSet, string Callsign, bool CallsignSeenNow, DateTime? CallsignLastSeen,
+    bool Armed, bool DryRun, DateTime? LastPress);
+
 /// <summary>The watch loop. Same behaviour as the Python script, exposed through events for the UI.</summary>
 public sealed class Watcher : IDisposable
 {
@@ -50,6 +57,21 @@ public sealed class Watcher : IDisposable
     public event Action<PressEvent>? Pressed;
     public event Action<string>? Status;
     public event Action<int, int, DateTime?>? Heartbeat;
+    public event Action<Health>? HealthChanged;
+
+    private DateTime? _callsignLastSeen;
+
+    /// <summary>Health without a fresh scan (used before the first scan and when no region is set).</summary>
+    public Health CurrentHealth(Settings s, int linesRead = 0, int optionsRead = 0, DateTime? lastScan = null, bool callsignSeenNow = false)
+    {
+        var needle = s.SimWindowTitleContains ?? "";
+        var sim = needle.Length == 0 ? IntPtr.Zero : InputSender.FindWindowByTitle(needle);
+        return new Health(
+            sim != IntPtr.Zero, sim == IntPtr.Zero ? "" : InputSender.TitleOf(sim),
+            s.Region is not null, linesRead, optionsRead, lastScan,
+            !string.IsNullOrWhiteSpace(s.Callsign), s.Callsign ?? "", callsignSeenNow, _callsignLastSeen,
+            _armed, s.DryRun, LastPress);
+    }
 
     public void Start()
     {
@@ -94,17 +116,31 @@ public sealed class Watcher : IDisposable
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(Math.Max(0.2, s.ScanInterval)), ct);
-                if (!_armed || s.Region is null)
+                if (s.Region is null)
                 {
-                    Status?.Invoke(s.Region is null ? "No panel region set" : "Disarmed");
+                    Status?.Invoke("No panel region set");
+                    HealthChanged?.Invoke(CurrentHealth(s));
                     continue;
                 }
 
+                // Scan even when disarmed so the live view and health check stay current; only press when armed.
                 var scan = await ScanOnceAsync(s);
                 Scans++;
                 var opts = scan.Options;
                 var verdicts = scan.Verdicts;
                 var chosen = verdicts.FirstOrDefault(v => v.Verdict == Verdict.Press)?.Option;
+
+                var seenNow = !string.IsNullOrWhiteSpace(s.Callsign) && CallsignDetector.IsSeen(scan.Lines.Select(l => l.Text), s.Callsign);
+                if (seenNow) _callsignLastSeen = DateTime.Now;
+                HealthChanged?.Invoke(CurrentHealth(s, scan.Lines.Count, opts.Count, DateTime.Now, seenNow));
+
+                if (!_armed)
+                {
+                    if (chosen is not null) Status?.Invoke($"Disarmed. Would have answered [{chosen.Number}] {chosen.Text}");
+                    else Status?.Invoke("Disarmed");
+                    scan.Image.Dispose();
+                    continue;
+                }
 
                 var signature = string.Join("\n", opts.Select(o => o.Number + "|" + o.Text));
                 if (signature != lastSignature)

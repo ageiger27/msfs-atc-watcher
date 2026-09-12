@@ -31,6 +31,31 @@
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
       <StackPanel>
 
+        <!-- Health check -->
+        <Border Style="{StaticResource CardStyle}">
+          <StackPanel>
+            <TextBlock Text="Health check" Style="{StaticResource H2}"/>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="22"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+              </Grid.RowDefinitions>
+              <Ellipse Grid.Row="0" x:Name="SimDot" Width="11" Height="11" Fill="{StaticResource FgDim}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SimText" Text="Sim: checking…" Margin="0,3"/>
+              <Ellipse Grid.Row="1" x:Name="PanelDot" Width="11" Height="11" Fill="{StaticResource FgDim}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PanelText" Text="ATC panel: not set" Margin="0,3"/>
+              <Ellipse Grid.Row="2" x:Name="CallsignDot" Width="11" Height="11" Fill="{StaticResource FgDim}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CallsignText" Text="Callsign: not set" Margin="0,3"/>
+              <Ellipse Grid.Row="3" x:Name="ReadyDot" Width="11" Height="11" Fill="{StaticResource FgDim}" VerticalAlignment="Center"/>
+              <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ReadyText" Text="Ready: waiting for first scan" Margin="0,3"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <!-- 1. Panel -->
         <Border Style="{StaticResource CardStyle}">
           <StackPanel>

@@ -86,6 +86,7 @@ public partial class MainWindow : Window
         _watcher.OptionsChanged += v => Dispatcher.BeginInvoke(() => ShowVerdicts(v));
         _watcher.Pressed += p => Dispatcher.BeginInvoke(() => OnPressed(p));
         _watcher.Status += s => Dispatcher.BeginInvoke(() => StatusText.Text = s);
+        _watcher.HealthChanged += h => Dispatcher.BeginInvoke(() => ShowHealth(h));
 
         _tray = new TrayIcon();
         _tray.ShowRequested += () => { Show(); WindowState = WindowState.Normal; Activate(); };
@@ -94,6 +95,7 @@ public partial class MainWindow : Window
 
         PopulateFromSettings();
         UpdateArmedUi(_watcher.Armed);
+        ShowHealth(_watcher.CurrentHealth(_settings));
         AppLog.Write($"ATC Watcher started (OCR language {_ocr.LanguageTag})");
         _watcher.Start();
 
@@ -160,6 +162,84 @@ public partial class MainWindow : Window
         ArmButton.BorderBrush = brush;
         _tray?.SetArmed(armed);
         if (!armed) StatusText.Text = "Disarmed. Nothing will be pressed.";
+    }
+
+    private void ShowHealth(Health h)
+    {
+        Brush Dot(string name) => (Brush)FindResource(name);
+
+        SimDot.Fill = Dot(h.SimFound ? "Green" : "Red");
+        SimText.Text = h.SimFound ? $"Sim: found “{h.SimTitle}”" : "Sim: no window with “Flight Simulator” in its title. Is the sim running?";
+
+        if (!h.RegionSet)
+        {
+            PanelDot.Fill = Dot("Red");
+            PanelText.Text = "ATC panel: location not set. Click “Find it for me”.";
+        }
+        else if (h.LastScan is null)
+        {
+            PanelDot.Fill = Dot("Amber");
+            PanelText.Text = "ATC panel: location set, waiting for the first scan…";
+        }
+        else if (h.OptionsRead > 0)
+        {
+            PanelDot.Fill = Dot("Green");
+            PanelText.Text = $"ATC panel: readable. {h.OptionsRead} replies and {h.LinesRead} lines of text at {h.LastScan:HH:mm:ss}.";
+        }
+        else if (h.LinesRead > 0)
+        {
+            PanelDot.Fill = Dot("Amber");
+            PanelText.Text = $"ATC panel: text is readable but no numbered replies right now ({h.LastScan:HH:mm:ss}). Normal between calls if the reply list is closed.";
+        }
+        else
+        {
+            PanelDot.Fill = Dot("Red");
+            PanelText.Text = $"ATC panel: nothing readable in the watched area at {h.LastScan:HH:mm:ss}. Has the panel moved or closed?";
+        }
+
+        if (!h.CallsignSet)
+        {
+            CallsignDot.Fill = Dot("Red");
+            CallsignText.Text = "Callsign: not set. Type it or click “Detect from panel”. Read-backs that only contain your callsign will be missed.";
+        }
+        else if (h.CallsignSeenNow)
+        {
+            CallsignDot.Fill = Dot("Green");
+            CallsignText.Text = $"Callsign: “{h.Callsign}” matches what ATC is calling you right now.";
+        }
+        else if (h.CallsignLastSeen is not null)
+        {
+            CallsignDot.Fill = Dot("Green");
+            CallsignText.Text = $"Callsign: “{h.Callsign}” matched ATC at {h.CallsignLastSeen:HH:mm:ss}.";
+        }
+        else
+        {
+            CallsignDot.Fill = Dot("Amber");
+            CallsignText.Text = $"Callsign: “{h.Callsign}” set, but not seen on the panel yet. Check it once ATC has addressed you.";
+        }
+
+        if (!h.Armed)
+        {
+            ReadyDot.Fill = Dot("FgDim");
+            ReadyText.Text = "Ready: disarmed. Nothing will be pressed.";
+        }
+        else if (h.DryRun)
+        {
+            ReadyDot.Fill = Dot("Amber");
+            ReadyText.Text = "Ready: practice mode. Calls are logged but keys are never pressed.";
+        }
+        else if (h.SimFound && h.RegionSet && h.OptionsRead > 0 || h.SimFound && h.RegionSet && h.LinesRead > 0)
+        {
+            ReadyDot.Fill = Dot("Green");
+            ReadyText.Text = h.LastPress is null
+                ? "Ready: armed and watching. No call answered yet this session."
+                : $"Ready: armed and watching. Last call answered at {h.LastPress:HH:mm:ss}.";
+        }
+        else
+        {
+            ReadyDot.Fill = Dot("Red");
+            ReadyText.Text = "Ready: no. Fix the red items above.";
+        }
     }
 
     private void ShowVerdicts(IReadOnlyList<Classified> verdicts)
@@ -325,16 +405,22 @@ public partial class MainWindow : Window
         {
             var scan = await _watcher.ScanOnceAsync(_settings.Clone());
             scan.Image.Dispose();
-            var guess = CallsignDetector.Detect(scan.Lines.Select(l => l.Text));
+            var texts = scan.Lines.Select(l => l.Text).ToList();
+            var guess = CallsignDetector.Detect(texts);
             if (guess is null)
             {
-                StatusText.Text = "Couldn't spot a callsign. Wait for ATC to say something, then try again, or type it in.";
+                var history = texts.Where(t => !OptionParser.TryParse(t, out _)).ToList();
+                StatusText.Text = history.Count == 0
+                    ? "Couldn't spot a callsign: no ATC messages are visible in the watched area yet. Wait for ATC to say something, then try again."
+                    : "Couldn't spot a callsign in the messages on the panel. Wait for ATC to address you, then try again, or type it in.";
+                AppLog.Write($"Callsign detect found nothing in: {string.Join(" | ", history)}");
                 return;
             }
             CallsignBox.Text = guess;
             _settings.Callsign = guess;
             ApplySettings();
             StatusText.Text = $"Callsign set to {guess}. Edit it if that's not quite right.";
+            AppLog.Write($"Callsign detected: {guess}");
         }
         catch (Exception ex)
         {

@@ -164,6 +164,33 @@ public class RulesTests
     }
 
     [Fact]
+    public void Detects_callsign_from_wrapped_real_panel_text()
+    {
+        // OCR of a real capture: the panel wraps lines, and the read-back ends with " ." not a comma.
+        var lines = new[]
+        {
+            "speedbird N", "0 , acknowledge", "last transmission.", "You",
+            "Climb and maintain 13,000 ft,", "Speedbird NA05410 .",
+            "SALT LAKE CITY", "Speedbird NA05410 , Salt Lake", "Center, Altimeter 2985, radar", "contact, continue.",
+            "1 - Request vector to next waypoint", "2 - [ Request Cruising Altitude Increase I", "4 - Cancel IFR",
+        };
+        var got = CallsignDetector.Detect(lines);
+        Assert.NotNull(got);
+        Assert.Equal(Fuzzy.Normalize("Speedbird NAO5410"), Fuzzy.Normalize(got!));
+
+        // "Altimeter 2985" and "Squawk 0572" must never be mistaken for a callsign.
+        var phraseology = new[] { "Salt Lake Center, Altimeter 2985, radar contact.", "Squawk 0572." };
+        Assert.Null(CallsignDetector.Detect(phraseology));
+
+        // GA callsign with a numeric token after the aircraft type.
+        var ga = new[] { "Cessna 770, descend and maintain 2,000 ft.", "Descend and maintain 2,000 ft, Cessna 770." };
+        Assert.Equal("Cessna 770", CallsignDetector.Detect(ga));
+
+        Assert.True(CallsignDetector.IsSeen(lines, "Speedbird NAO5410"));
+        Assert.False(CallsignDetector.IsSeen(lines, "N172SP"));
+    }
+
+    [Fact]
     public void Panel_finder_builds_a_region_around_the_option_cluster()
     {
         var screen = new System.Drawing.Rectangle(0, 0, 3440, 1440);

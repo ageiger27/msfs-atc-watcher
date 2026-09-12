@@ -57,7 +57,7 @@ public static class InputSender
 
     public static IntPtr ForegroundWindowHandle() => GetForegroundWindow();
 
-    private static string TitleOf(IntPtr h)
+    public static string TitleOf(IntPtr h)
     {
         var len = GetWindowTextLength(h);
         if (len <= 0) return "";
