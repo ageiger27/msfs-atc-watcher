@@ -1,0 +1,37 @@
+{
+  "region": null,
+  "scan_interval": 1.0,
+  "confirm_scans": 2,
+  "min_press_interval": 4.0,
+  "post_press_delay": 2.5,
+  "ocr_scale": 2,
+  "callsign": "",
+  "sim_window_title_contains": "Flight Simulator",
+  "option_keys": {
+    "1": "1",
+    "2": "2",
+    "3": "3",
+    "4": "4",
+    "5": "5",
+    "6": "6",
+    "7": "7",
+    "8": "8",
+    "9": "9",
+    "0": "0"
+  },
+  "toggle_hotkey": "ctrl+alt+a",
+  "armed_on_start": true,
+  "dry_run": false,
+  "save_trigger_captures": true,
+  "allow_patterns": [
+    "^(roger|wilco|affirm|affirmative|acknowledge[d]?|cop(y|ied)|understood)\\b",
+    "\\b(contact|switch(ing)?( to)?|monitor|tune|set)\\b.*\\b1\\d{2}[.,]\\d{1,3}\\b",
+    "^[a-z .'\\-]+\\b(center|centre|approach|departure|tower|ground|delivery|radio|control|unicom|clearance|director|radar)\\b.*\\b(\\d{1,2},?\\d{3}\\s*(ft|feet)|fl\\s?\\d{2,3}|flight level|with you|level)\\b",
+    "^(climb|descend|maintain|fly heading|turn (left|right)|proceed direct|cleared|expect|squawk|reduce speed|increase speed|resume own navigation|radar contact|altimeter|cross|continue|hold|taxi|line up|position and hold|frequency change approved)\\b"
+  ],
+  "deny_patterns": [
+    "\\b(request|cancel|nearest|declare|emergency|say again|unable|ask|file|close|flight following|abort|divert|stay with|check in|ready for|ready to|atis|awos|asos)\\b",
+    "\\btune\\b(?!.*\\b1\\d{2}[.,]\\d{1,3}\\b)",
+    "\\bchange\\b(?!.*\\b1\\d{2}[.,]\\d{1,3}\\b)"
+  ]
+}
