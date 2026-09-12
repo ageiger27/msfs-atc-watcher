@@ -167,7 +167,7 @@
 
               <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,8,0,0">
                 <CheckBox x:Name="DryRunBox" Content="Practice mode (log only, never press keys)" Click="Advanced_LostFocus"/>
-                <CheckBox x:Name="StartMinBox" Content="Start in the tray" Click="Advanced_LostFocus"/>
+                <CheckBox x:Name="StartMinBox" Content="Start minimised" Click="Advanced_LostFocus"/>
                 <CheckBox x:Name="AutostartBox" Content="Launch with Windows" Click="Autostart_Click"/>
               </StackPanel>
 
@@ -193,7 +193,7 @@
         </Border>
 
         <TextBlock Style="{StaticResource Dim}" HorizontalAlignment="Center" Margin="0,0,0,8"
-                   Text="Closing this window keeps ATC Watcher running in the tray. Use the tray icon to exit."/>
+                   Text="Closing this window stops ATC Watcher. Minimise it to keep it running out of the way; the tray icon shows armed / disarmed."/>
       </StackPanel>
     </ScrollViewer>
   </Grid>

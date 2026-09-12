@@ -19,7 +19,7 @@ public sealed class TrayIcon : IDisposable
     public TrayIcon()
     {
         var menu = new ContextMenuStrip();
-        var show = new ToolStripMenuItem("Open ATC Watcher");
+        var show = new ToolStripMenuItem("Show ATC Watcher");
         show.Click += (_, _) => ShowRequested?.Invoke();
         _toggle.Click += (_, _) => ToggleRequested?.Invoke();
         var exit = new ToolStripMenuItem("Exit");

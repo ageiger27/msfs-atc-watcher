@@ -20,7 +20,8 @@ There are two versions in this repo:
    sets the watch area. Use **Select manually** if it can't find them.
 4. Type your callsign, or click **Detect from panel** once ATC has said something.
 5. Leave it **ARMED** and go do something else. `Ctrl+Alt+A` arms and disarms
-   from inside the sim. Closing the window keeps it running in the tray.
+   from inside the sim. Minimise the window to keep it out of the way; closing
+   it stops the watcher. The tray icon shows armed (green) or disarmed (grey).
 
 The **What it sees right now** list shows every reply on the panel and whether it
 would be pressed (PRESS), never pressed (DENY), or ignored because no rule

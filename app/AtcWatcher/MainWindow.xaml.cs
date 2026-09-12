@@ -99,7 +99,7 @@ public partial class MainWindow : Window
         AppLog.Write($"ATC Watcher started (OCR language {_ocr.LanguageTag})");
         _watcher.Start();
 
-        if (_settings.StartMinimized) Hide();
+        if (_settings.StartMinimized) WindowState = WindowState.Minimized;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -508,13 +508,9 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!_reallyExit)
-        {
-            e.Cancel = true;
-            Hide();
-            _tray?.Balloon("ATC Watcher is still running", "Double-click the tray icon to open it again.");
-            return;
-        }
+        // Closing the window exits for real. Use the "Start in the tray" option or the minimise
+        // button if you want it out of the way while it keeps running.
+        _reallyExit = true;
         _watcher?.Stop();
         _tray?.Dispose();
         if (_hwnd is not null) Hotkeys.UnregisterHotKey(_hwnd.Handle, HotkeyId);
