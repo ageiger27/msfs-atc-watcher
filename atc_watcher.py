@@ -93,6 +93,8 @@ DEFAULT_CONFIG = {
         # Handoff readback or tuning to the new frequency: "Contact Salt Lake Center on 128.05",
         # "Tune COM1 to 128.05", "Switch to 128.05".
         r"\b(contact|switch(ing)?( to)?|monitor|tune|set)\b.*\b1\d{2}[.,]\d{1,3}\b",
+        # Handoff readback whose frequency wrapped onto the next line: "Contact Salt Lake Center".
+        r"^(contact|switch(ing)?( to)?|monitor|tune)\b.*\b(center|centre|approach|departure|tower|ground|delivery|radio|control|unicom|clearance|director|radar)\b",
         # Check-in with the new controller: "Salt Lake Center, Speedbird NAO9210, 12,000 ft."
         r"^[a-z .'\-]+\b(center|centre|approach|departure|tower|ground|delivery|radio|control|unicom|"
         r"clearance|director|radar)\b.*\b(\d{1,2},?\d{3}\s*(ft|feet)|fl\s?\d{2,3}|flight level|with you|level)\b",
@@ -105,8 +107,6 @@ DEFAULT_CONFIG = {
     "deny_patterns": [
         r"\b(request|cancel|nearest|declare|emergency|say again|unable|ask|file|close|"
         r"flight following|abort|divert|stay with|check in|ready for|ready to|atis|awos|asos)\b",
-        # "Tune ..." is only OK when a frequency follows it (handled by the allow list).
-        r"\btune\b(?!.*\b1\d{2}[.,]\d{1,3}\b)",
         r"\bchange\b(?!.*\b1\d{2}[.,]\d{1,3}\b)",
     ],
 }

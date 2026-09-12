@@ -3,3 +3,8 @@ __pycache__/
 debug/
 atc_watcher.log
 config.json
+
+# .NET build output
+app/**/bin/
+app/**/obj/
+app/dist/

@@ -1,0 +1,45 @@
+name: Build and release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Test
+        run: dotnet test app/AtcWatcher.Tests/AtcWatcher.Tests.csproj -c Release --filter "FullyQualifiedName!~OcrTests"
+
+      - name: Publish
+        run: >
+          dotnet publish app/AtcWatcher/AtcWatcher.csproj -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -o dist
+
+      - name: Zip
+        run: Compress-Archive -Path dist/AtcWatcher.exe -DestinationPath AtcWatcher-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AtcWatcher-win-x64
+          path: dist/AtcWatcher.exe
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/AtcWatcher.exe
+            AtcWatcher-win-x64.zip
+          generate_release_notes: true

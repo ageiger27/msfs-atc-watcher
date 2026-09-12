@@ -2,6 +2,37 @@
 
 Answers routine ATC calls in career mode while you are away from the keyboard.
 
+There are two versions in this repo:
+
+- **`app/`** — the Windows desktop app (C# / WPF). Single `AtcWatcher.exe`, no
+  install, finds the ATC panel by itself, tray icon, live view of what it will
+  press. This is the one to use. Download it from the Releases page.
+- **The Python script in the repo root** — the original prototype. Same rules,
+  same behaviour, useful if you want to hack on the logic. Instructions below.
+
+## Desktop app
+
+1. Download `AtcWatcher.exe` from Releases and run it. Windows may show a
+   “Windows protected your PC” screen the first time because the build is not
+   yet code-signed. Click *More info* then *Run anyway*.
+2. In the sim, open the ATC panel and pin it so it stays on screen.
+3. Click **Find it for me**. It scans every monitor for the numbered replies and
+   sets the watch area. Use **Select manually** if it can't find them.
+4. Type your callsign, or click **Detect from panel** once ATC has said something.
+5. Leave it **ARMED** and go do something else. `Ctrl+Alt+A` arms and disarms
+   from inside the sim. Closing the window keeps it running in the tray.
+
+The **What it sees right now** list shows every reply on the panel and whether it
+would be pressed (PRESS), never pressed (DENY), or ignored because no rule
+matched (SKIP). If a call gets missed, the SKIP row tells you what text to add
+a rule for. Rules live in `%APPDATA%\AtcWatcher\settings.json` and are the
+same regexes the Python script uses.
+
+Building it yourself needs the .NET 8 SDK: run `app\publish.bat`, or open
+`app\AtcWatcher.sln` in Visual Studio. Tests: `dotnet test app`.
+
+## Python script
+
 It screenshots the pinned ATC panel every few seconds, reads the numbered
 options with the Windows OCR engine, and when an acknowledgement or readback
 option shows up (Roger, Wilco, "Contact Seattle Center on 125.80, N172SP",
