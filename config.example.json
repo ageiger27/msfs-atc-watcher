@@ -1,7 +1,7 @@
 {
   "region": null,
   "scan_interval": 10.0,
-  "confirm_scans": 2,
+  "confirm_scans": 1,
   "min_press_interval": 4.0,
   "post_press_delay": 2.5,
   "ocr_scale": 2,

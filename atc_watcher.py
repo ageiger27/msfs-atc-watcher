@@ -49,7 +49,7 @@ DEFAULT_CONFIG = {
 
     # The same acknowledgement option must be seen this many scans in a row before we press.
     # Protects against a single garbled OCR frame.
-    "confirm_scans": 2,
+    "confirm_scans": 1,
 
     # Never press keys more often than this (seconds).
     "min_press_interval": 4.0,

@@ -52,8 +52,8 @@ Use it for a whole flight the first time to see what it would have done.
 - Deny patterns beat allow patterns. Anything containing "request", "cancel",
   "nearest", "declare", "emergency", "unable", "say again" and so on is never
   pressed. "Tune" and "change" are only allowed when a frequency follows them.
-- The same option must be read on two consecutive scans before it is pressed,
-  so one garbled OCR frame cannot trigger a press.
+- Set `confirm_scans` to 2 if you want an option to be read on two consecutive
+  scans before it is pressed, at the cost of a slower reply.
 - At most one press every 4 seconds, and never the same option twice in a row
   until it has cleared from the panel.
 - Keys are only sent when the foreground window title contains
@@ -79,7 +79,7 @@ Use it for a whole flight the first time to see what it would have done.
 | `region` | null | Screen rectangle of the ATC panel. Set with `select-region.bat`. |
 | `callsign` | "" | Your tail number. Options ending with it count as readbacks. |
 | `scan_interval` | 10.0 | Seconds between scans. |
-| `confirm_scans` | 2 | Consecutive scans an option must be seen before pressing. |
+| `confirm_scans` | 1 | Consecutive scans an option must be seen before pressing. |
 | `min_press_interval` | 4.0 | Minimum seconds between presses. |
 | `post_press_delay` | 2.5 | Pause after a press so the panel can redraw. |
 | `ocr_scale` | 2 | Upscale factor before OCR. Raise to 3 if the panel font is tiny. |
