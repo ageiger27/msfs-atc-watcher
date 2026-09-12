@@ -109,6 +109,18 @@ DEFAULT_CONFIG = {
         r"flight following|abort|divert|stay with|check in|ready for|ready to|atis|awos|asos)\b",
         r"\bchange\b(?!.*\b1\d{2}[.,]\d{1,3}\b)",
     ],
+
+    # Options that are normally denied but should be pressed when the rest of the panel says so.
+    # "context" is matched against everything on the panel except the option itself (ATC message
+    # history and the other options). Context rules beat the deny list.
+    "context_rules": [
+        {"option": r"^cancel ifr\b",
+         "context": r"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel",
+         "note": "ATC said we may cancel IFR"},
+        {"option": r"^request flight following\b",
+         "context": r"retry with last ifr|flight following",
+         "note": "IFR just ended; pick up flight following"},
+    ],
 }
 
 
@@ -357,15 +369,20 @@ class Option:
 
 # "1. Contact ...", "1 Contact ...", "1) ...". A digit must be followed by a separator or a space
 # so history lines like "10,000 feet" don't parse as option 1.
-OPTION_RE = re.compile(r"^\s*(\d)(?:\s*[.,:;)\]\-]\s*|\s+)(\S.*)$")
+OPTION_RE = re.compile(r"^\s*(\d)(?:\s*[.,:;)\]\-]\s*(\S.*)|\s+([A-Z\[].*))$")
 
 
 def parse_options(lines: list[str]) -> list[Option]:
+    # "1 - Acknowledge Handoff" (separator) always parses. "4 Tune ATIS" (space only) parses only
+    # when the text starts with a capital, so wrapped history lines like "9 miles northwest of KLOL"
+    # are not mistaken for option 9.
     opts = []
     for raw in lines:
         m = OPTION_RE.match(raw)
         if m:
-            opts.append(Option(number=m.group(1), text=m.group(2).strip(), raw=raw))
+            text = (m.group(2) or m.group(3) or "").strip()
+            if text:
+                opts.append(Option(number=m.group(1), text=text, raw=raw))
     return opts
 
 
@@ -381,9 +398,16 @@ class Decider:
         self.allow = [re.compile(p, re.I) for p in cfg["allow_patterns"]]
         self.deny = [re.compile(p, re.I) for p in cfg["deny_patterns"]]
         self.callsign = fuzzy(cfg.get("callsign") or "")
+        self.context_rules = [
+            (re.compile(r["option"], re.I), re.compile(r["context"], re.I), r.get("note") or r["option"])
+            for r in cfg.get("context_rules", [])
+        ]
 
-    def classify(self, opt: Option) -> tuple[str, str]:
+    def classify(self, opt: Option, context: str = "") -> tuple[str, str]:
         """Returns (verdict, reason) where verdict is 'press', 'deny' or 'skip'."""
+        for o_re, c_re, note in self.context_rules:
+            if o_re.search(opt.text) and c_re.search(context):
+                return "press", f"context rule: {note}"
         for d in self.deny:
             if d.search(opt.text):
                 return "deny", f"deny pattern /{d.pattern[:40]}.../"
@@ -394,8 +418,8 @@ class Decider:
             return "press", "contains callsign"
         return "skip", "no match"
 
-    def choose(self, opts: list[Option]) -> tuple[Optional[Option], list[tuple[Option, str, str]]]:
-        verdicts = [(o, *self.classify(o)) for o in opts]
+    def choose(self, opts: list[Option], lines: list[str] = ()) -> tuple[Optional[Option], list[tuple[Option, str, str]]]:
+        verdicts = [(o, *self.classify(o, "\n".join(l for l in lines if l != o.raw))) for o in opts]
         for o, v, _ in verdicts:
             if v == "press":
                 return o, verdicts
@@ -509,7 +533,7 @@ def run_test(cfg: dict, log: logging.Logger, image_path: Optional[str]) -> int:
     if not opts:
         log.info("No numbered options found.")
         return 0
-    chosen, verdicts = decider.choose(opts)
+    chosen, verdicts = decider.choose(opts, lines)
     log.info("Options:")
     for o, v, why in verdicts:
         log.info("   [%s] %-5s %s   (%s)", o.number, v.upper(), o.text, why)
@@ -579,7 +603,7 @@ def run_watch(cfg: dict, log: logging.Logger, dry_run: bool) -> int:
                 img = grab_region(sct, cfg["region"])
                 lines = ocr.read_lines(prep_for_ocr(img, cfg["ocr_scale"]))
                 opts = parse_options(lines)
-                chosen, verdicts = decider.choose(opts)
+                chosen, verdicts = decider.choose(opts, lines)
                 scans += 1
                 if heartbeat and time.time() - last_heartbeat >= heartbeat:
                     last_heartbeat = time.time()
@@ -593,6 +617,10 @@ def run_watch(cfg: dict, log: logging.Logger, dry_run: bool) -> int:
                         log.info("Panel options changed:")
                         for o, v, why in verdicts:
                             log.info("   [%s] %-5s %s  (%s)", o.number, v.upper(), o.text, why)
+                        option_raws = {o.raw for o in opts}
+                        history = [l for l in lines if l not in option_raws][-4:]
+                        if history:
+                            log.info("   panel text: %s", " | ".join(history))
                     else:
                         log.info("Panel shows no numbered options")
 

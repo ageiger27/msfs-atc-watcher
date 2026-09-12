@@ -34,5 +34,17 @@
     "\\b(request|cancel|nearest|declare|emergency|say again|unable|ask|file|close|flight following|abort|divert|stay with|check in|ready for|ready to|atis|awos|asos)\\b",
     "\\bchange\\b(?!.*\\b1\\d{2}[.,]\\d{1,3}\\b)"
   ],
-  "heartbeat_interval": 60
+  "heartbeat_interval": 60,
+  "context_rules": [
+    {
+      "option": "^cancel ifr\\b",
+      "context": "cancel\\W{0,3}(your |the )?ifr|ifr\\W.{0,30}cancel",
+      "note": "ATC said we may cancel IFR"
+    },
+    {
+      "option": "^request flight following\\b",
+      "context": "retry with last ifr|flight following",
+      "note": "IFR just ended; pick up flight following"
+    }
+  ]
 }

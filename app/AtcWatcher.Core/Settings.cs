@@ -4,6 +4,12 @@ using System.Text.Json.Serialization;
 
 namespace AtcWatcher.Core;
 
+/// <summary>
+/// An option that is normally denied but should be pressed when the rest of the panel matches
+/// <see cref="Context"/> (ATC message history and the other options). Beats the deny list.
+/// </summary>
+public sealed record ContextRule(string Option, string Context, string Note = "");
+
 public sealed record RegionRect(int Left, int Top, int Width, int Height)
 {
     public Rectangle ToRectangle() => new(Left, Top, Width, Height);
@@ -51,6 +57,13 @@ public sealed class Settings
 
     public List<string> AllowPatterns { get; set; } = DefaultAllowPatterns();
     public List<string> DenyPatterns { get; set; } = DefaultDenyPatterns();
+    public List<ContextRule> ContextRules { get; set; } = DefaultContextRules();
+
+    public static List<ContextRule> DefaultContextRules() => new()
+    {
+        new(@"^cancel ifr\b", @"cancel\W{0,3}(your |the )?ifr|ifr\W.{0,30}cancel", "ATC said we may cancel IFR"),
+        new(@"^request flight following\b", @"retry with last ifr|flight following", "IFR just ended; pick up flight following"),
+    };
 
     public static List<string> DefaultAllowPatterns() => new()
     {

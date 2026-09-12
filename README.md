@@ -80,6 +80,10 @@ Use it for a whole flight the first time to see what it would have done.
 
 ## Safety rules built in
 
+- Context rules handle the IFR-to-VFR transition. "Cancel IFR" is pressed only
+  when ATC's message on the panel says you may cancel, and "Request Flight
+  Following" only when the panel is also offering "Retry With Last IFR Flight
+  Plan" (meaning IFR just ended). Both are denied at any other time.
 - Deny patterns beat allow patterns. Anything containing "request", "cancel",
   "nearest", "declare", "emergency", "unable", "say again" and so on is never
   pressed. "Tune" and "change" are only allowed when a frequency follows them.
@@ -123,3 +127,4 @@ Use it for a whole flight the first time to see what it would have done.
 | `save_trigger_captures` | true | Save the screenshot behind every press to `debug/`. |
 | `allow_patterns` | see file | Regexes that mark an option as an acknowledgement. |
 | `deny_patterns` | see file | Regexes that block an option no matter what. |
+| `context_rules` | see file | Option + context regex pairs. Pressed only when the rest of the panel matches the context. Beat the deny list. |

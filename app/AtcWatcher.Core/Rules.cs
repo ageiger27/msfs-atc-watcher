@@ -13,16 +13,22 @@ public static class OptionParser
 {
     // "1 - Acknowledge Handoff", "1. Roger", "1) ...". The digit must be followed by a separator
     // or whitespace so history lines like "10,000 ft" never parse as option 1.
+    // "4 Tune ATIS" (space only) parses only when the text starts with a capital, so wrapped
+    // history lines like "9 miles northwest of KLOL" are not mistaken for option 9.
     private static readonly Regex OptionRe =
-        new(@"^\s*(\d)(?:\s*[.,:;)\]\-]\s*|\s+)(\S.*)$", RegexOptions.Compiled);
+        new(@"^\s*(\d)(?:\s*[.,:;)\]\-]\s*(\S.*)|\s+([A-Z\[].*))$", RegexOptions.Compiled);
 
     public static bool TryParse(string line, out AtcOption option)
     {
         var m = OptionRe.Match(line);
         if (m.Success)
         {
-            option = new AtcOption(m.Groups[1].Value, m.Groups[2].Value.Trim(), line);
-            return true;
+            var text = (m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value).Trim();
+            if (text.Length > 0)
+            {
+                option = new AtcOption(m.Groups[1].Value, text, line);
+                return true;
+            }
         }
         option = null!;
         return false;
@@ -63,12 +69,16 @@ public sealed class Decider
 {
     private readonly List<Regex> _allow;
     private readonly List<Regex> _deny;
+    private readonly List<(Regex Option, Regex Context, string Note)> _context;
     private readonly string _callsign;
 
     public Decider(Settings s)
     {
         _allow = s.AllowPatterns.Select(Compile).ToList();
         _deny = s.DenyPatterns.Select(Compile).ToList();
+        _context = (s.ContextRules ?? new())
+            .Select(r => (Compile(r.Option), Compile(r.Context), string.IsNullOrWhiteSpace(r.Note) ? r.Option : r.Note))
+            .ToList();
         _callsign = Fuzzy.Normalize(s.Callsign ?? "");
     }
 
@@ -80,8 +90,12 @@ public sealed class Decider
         return p.Length > 40 ? p[..40] + "…" : p;
     }
 
-    public Classified Classify(AtcOption opt)
+    /// <param name="context">Everything else on the panel (message history and the other options).</param>
+    public Classified Classify(AtcOption opt, string context = "")
     {
+        foreach (var (o, c, note) in _context)
+            if (o.IsMatch(opt.Text) && c.IsMatch(context))
+                return new(opt, Verdict.Press, $"context rule: {note}");
         foreach (var d in _deny)
             if (d.IsMatch(opt.Text)) return new(opt, Verdict.Deny, $"deny rule /{Short(d)}/");
         foreach (var a in _allow)
@@ -91,9 +105,12 @@ public sealed class Decider
         return new(opt, Verdict.Skip, "no rule matched");
     }
 
-    public (AtcOption? Chosen, List<Classified> Verdicts) Choose(IEnumerable<AtcOption> options)
+    public (AtcOption? Chosen, List<Classified> Verdicts) Choose(IEnumerable<AtcOption> options, IEnumerable<string>? panelLines = null)
     {
-        var verdicts = options.Select(Classify).ToList();
+        var lines = panelLines?.ToList() ?? new List<string>();
+        var verdicts = options
+            .Select(o => Classify(o, string.Join("\n", lines.Where(l => l != o.Raw))))
+            .ToList();
         var chosen = verdicts.FirstOrDefault(v => v.Verdict == Verdict.Press)?.Option;
         return (chosen, verdicts);
     }

@@ -66,10 +66,61 @@ public class RulesTests
     [InlineData("10,000 ft.")]
     [InlineData("Salt Lake Center, Speedbird NAO9210 , 12,000 ft.")]
     [InlineData("128.05")]
+    [InlineData("9 miles northwest of KLOL, 12,000")]
+    [InlineData("8 80")]
     [InlineData("")]
     public void Ignores_history_lines(string line)
     {
         Assert.False(OptionParser.TryParse(line, out _));
+    }
+
+    [Fact]
+    public void Cancel_ifr_only_when_atc_invites_it()
+    {
+        var d = MakeDecider();
+        var idle = new[]
+        {
+            "Speedbird NAO9210, Salt Lake Center, altimeter 2996, radar contact.",
+            "1 - Request vector to next waypoint", "2 - Cancel IFR",
+        };
+        var opts = OptionParser.Parse(idle);
+        var (chosen, verdicts) = d.Choose(opts, idle);
+        Assert.Null(chosen);
+        Assert.Equal(Verdict.Deny, verdicts.Single(v => v.Option.Text == "Cancel IFR").Verdict);
+
+        var invited = new[]
+        {
+            "Speedbird NAO9210, Salt Lake Center, VFR conditions at KLOL, you may cancel IFR.",
+            "1 - Request vector to next waypoint", "2 - Cancel IFR",
+        };
+        var (chosen2, _) = d.Choose(OptionParser.Parse(invited), invited);
+        Assert.NotNull(chosen2);
+        Assert.Equal("Cancel IFR", chosen2!.Text);
+
+        // A traffic call mentioning VFR must not trigger it.
+        var traffic = new[]
+        {
+            "Speedbird NAO9210, traffic 2 o'clock, VFR Cessna, 5 miles.",
+            "1 - Request vector to next waypoint", "2 - Cancel IFR",
+        };
+        Assert.Null(d.Choose(OptionParser.Parse(traffic), traffic).Chosen);
+    }
+
+    [Fact]
+    public void Requests_flight_following_when_ifr_just_ended()
+    {
+        var d = MakeDecider();
+        var panel = new[]
+        {
+            "You", "Cancel IFR.",
+            "1 - Request Flight Following", "2 - Retry With Last IFR Flight Plan", "3 - [ Nearest Airport List ]",
+        };
+        var (chosen, _) = d.Choose(OptionParser.Parse(panel), panel);
+        Assert.Equal("Request Flight Following", chosen?.Text);
+
+        // Once flight following is active, "Cancel Flight Following" stays denied.
+        var active = new[] { "1 - Retry With Last IFR Flight Plan", "2 - Cancel Flight Following", "3 - [ Nearest Airport List ]" };
+        Assert.Null(d.Choose(OptionParser.Parse(active), active).Chosen);
     }
 
     [Fact]

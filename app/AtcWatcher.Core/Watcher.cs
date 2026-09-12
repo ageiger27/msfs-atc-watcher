@@ -72,8 +72,9 @@ public sealed class Watcher : IDisposable
         var image = ScreenCapture.Capture(s.Region.ToRectangle());
         using var scaled = ScreenCapture.Upscale(image, s.OcrScale);
         var lines = await _ocr.ReadAsync(scaled).ConfigureAwait(false);
-        var options = OptionParser.Parse(lines.Select(l => l.Text));
-        var (_, verdicts) = new Decider(s).Choose(options);
+        var texts = lines.Select(l => l.Text).ToList();
+        var options = OptionParser.Parse(texts);
+        var (_, verdicts) = new Decider(s).Choose(options, texts);
         return new ScanResult(lines, options, verdicts, image);
     }
 
@@ -114,6 +115,9 @@ public sealed class Watcher : IDisposable
                         AppLog.Write("Panel options changed:");
                         foreach (var v in verdicts)
                             AppLog.Write($"   [{v.Option.Number}] {v.Verdict.ToString().ToUpperInvariant(),-5} {v.Option.Text}  ({v.Reason})");
+                        var optionRaws = opts.Select(o => o.Raw).ToHashSet();
+                        var history = scan.Lines.Select(l => l.Text).Where(t => !optionRaws.Contains(t)).TakeLast(4).ToList();
+                        if (history.Count > 0) AppLog.Write($"   panel text: {string.Join(" | ", history)}");
                     }
                     else AppLog.Write("Panel shows no numbered options");
                     OptionsChanged?.Invoke(verdicts);
