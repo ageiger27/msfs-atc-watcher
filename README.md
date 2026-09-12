@@ -38,7 +38,7 @@ would press yourself, and only while the sim is the foreground window.
 2. Run `run.bat`. It starts armed. Leave the sim as the foreground window.
 3. `Ctrl+Alt+A` toggles armed / disarmed while it runs. `Ctrl+C` in the console quits.
 
-Every time the panel's option list changes it logs each option and how it was
+It logs a "Still watching" line once a minute. Every time the panel's option list changes it logs each option and how it was
 classified (PRESS / DENY / SKIP). When it presses a key it saves the screenshot
 that triggered it to `debug/` (newest 50 kept), so you can audit what it did
 while you were away. The log is also written to `atc_watcher.log`. If a call
@@ -79,6 +79,7 @@ Use it for a whole flight the first time to see what it would have done.
 | `region` | null | Screen rectangle of the ATC panel. Set with `select-region.bat`. |
 | `callsign` | "" | Your tail number. Options ending with it count as readbacks. |
 | `scan_interval` | 10.0 | Seconds between scans. |
+| `heartbeat_interval` | 60 | Seconds between "Still watching" log lines. 0 disables. |
 | `confirm_scans` | 1 | Consecutive scans an option must be seen before pressing. |
 | `min_press_interval` | 4.0 | Minimum seconds between presses. |
 | `post_press_delay` | 2.5 | Pause after a press so the panel can redraw. |

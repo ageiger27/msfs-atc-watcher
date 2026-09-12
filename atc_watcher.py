@@ -47,6 +47,9 @@ DEFAULT_CONFIG = {
     # Seconds between scans.
     "scan_interval": 10.0,
 
+    # Log a "still watching" line this often (seconds) so a quiet console is clearly alive. 0 disables.
+    "heartbeat_interval": 60,
+
     # The same acknowledgement option must be seen this many scans in a row before we press.
     # Protects against a single garbled OCR frame.
     "confirm_scans": 1,
@@ -558,6 +561,9 @@ def run_watch(cfg: dict, log: logging.Logger, dry_run: bool) -> int:
     last_seen_pressed = 0.0                   # last time the pressed option was still on screen
     last_status_reported = None
     last_signature = None
+    scans = 0
+    last_heartbeat = time.time()
+    heartbeat = float(cfg.get("heartbeat_interval", 60) or 0)
 
     with _mss_ctx() as sct:
         while True:
@@ -574,6 +580,11 @@ def run_watch(cfg: dict, log: logging.Logger, dry_run: bool) -> int:
                 lines = ocr.read_lines(prep_for_ocr(img, cfg["ocr_scale"]))
                 opts = parse_options(lines)
                 chosen, verdicts = decider.choose(opts)
+                scans += 1
+                if heartbeat and time.time() - last_heartbeat >= heartbeat:
+                    last_heartbeat = time.time()
+                    last = time.strftime("%H:%M:%S", time.localtime(last_press_time)) if last_press_time else "none yet"
+                    log.info("Still watching: %d scans, %d options on screen, last press %s", scans, len(opts), last)
 
                 signature = tuple((o.number, o.text) for o in opts)
                 if signature != last_signature:
